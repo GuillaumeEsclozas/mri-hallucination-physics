@@ -1,0 +1,40 @@
+data:
+  dataset: fastmri_knee_singlecoil
+  acceleration: 4
+  center_fraction: 0.08
+  mask_types:
+    - random
+    - equispaced
+    - gaussian
+    - poisson_disc
+  image_size: [320, 320]
+
+model:
+  architecture: unet
+  channels: [32, 64, 128, 256]
+  dropout_p: 0.05
+
+training:
+  epochs: 50
+  lr: 1.0e-3
+  batch_size: 8
+  loss: l1
+  seed: 42
+
+detection:
+  mc_dropout_samples: 20
+  ensemble_size: 3
+  ensemble_seeds: [100, 200, 300]
+  sfrc_patch_size: 48
+  sfrc_frc_threshold: 0.75
+  patch_eval_sizes: [16, 32]
+  binarization_percentile: 80
+
+figures:
+  dpi: 300
+  font_size_min: 12
+  cmap_magnitude: gray
+  cmap_kspace: viridis
+  cmap_error: RdBu_r
+  cmap_detection: hot
+  background: white
