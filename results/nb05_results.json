@@ -1,0 +1,31 @@
+{
+  "ranking_32x32": {
+    "deep_ensemble": 0.859,
+    "ifft_gradient": 0.828,
+    "mm_ifft_grad_60_40": 0.804,
+    "tta_flip": 0.801,
+    "tta_flip_rot": 0.795,
+    "high_freq_energy": 0.782,
+    "multi_mask": 0.776,
+    "mm_learned_70_30": 0.739,
+    "mahalanobis": 0.686,
+    "data_consistency": 0.666,
+    "residual": 0.662,
+    "kspace_consistency": 0.657,
+    "mc_dropout": 0.653,
+    "local_lipschitz": 0.617,
+    "energy_bottleneck": 0.576,
+    "learned_risk": 0.547,
+    "input_gradient": 0.527,
+    "reffree_sfrc": 0.517,
+    "sfrc_gt": 0.432
+  },
+  "best_combination": {
+    "deep_ensemble + high_freq_energy": 0.869
+  },
+  "ensemble_training": {
+    "seed_100": {"val_l1": 0.0430, "epoch": 2},
+    "seed_200": {"val_l1": 0.0557, "epoch": 43},
+    "seed_300": {"val_l1": 0.0547, "epoch": 35}
+  }
+}
