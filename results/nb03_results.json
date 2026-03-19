@@ -1,0 +1,33 @@
+{
+  "decomposition": {
+    "ifft_null_energy": "100%",
+    "unet_null_energy_4x": "86%",
+    "unet_meas_energy_4x": "14%"
+  },
+  "psf_correlation": {
+    "random": "0.948 +/- 0.022",
+    "equispaced": "0.944 +/- 0.022",
+    "gaussian": "0.927 +/- 0.035",
+    "poisson_disc": "0.947 +/- 0.021"
+  },
+  "control_experiment": {
+    "same_mask": "0.948 +/- 0.022",
+    "different_mask": "0.663 +/- 0.035",
+    "shuffled": "-0.001 +/- 0.003",
+    "drop": 0.285
+  },
+  "frequency_enrichment": {
+    "low": "0.92x",
+    "mid": "9.49x",
+    "high": "13.59x"
+  },
+  "phase_transition": {
+    "crossover_acc": 2.0,
+    "peak_null_at_4x": "75.9%"
+  },
+  "three_way": {
+    "ifft_null": "100%",
+    "cs_null": "94%",
+    "unet_null": "86%"
+  }
+}
