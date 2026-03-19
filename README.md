@@ -1,33 +1,35 @@
-
 # Physics-Informed Hallucination Detection in Accelerated MRI
 
 Detecting and localizing hallucinated content in deep learning-based MRI reconstruction without ground truth access. Benchmarks 22 detectors across 6 families (physics-informed, uncertainty, learned, OOD, spectral, hybrid) on the [fastMRI](https://fastmri.med.nyu.edu/) single-coil knee dataset.
 
-> **Best GT-free detector: 0.884 patch-level AUROC** using multi-mask + IFFT gradient fusion, validated across acceleration factors.
+> **Best GT-free detector: Deep Ensemble at 0.859 patch-level AUROC**, with IFFT Gradient (0.828) as the best zero-cost alternative.
 
-![Overview](figures/hero_figure.png)
+![Null-Space Decomposition](figures/figures_notebook_3/fig_001.png)
 
-*Top: Ground truth, U-Net reconstruction (4x), error map, null-space hallucination map, aliased IFFT. Bottom: Four GT-free detection maps with patch AUROC scores and oracle reference.*
+*IFFT vs U-Net null-space decomposition: IFFT error is 100% null-space (predictable from physics). U-Net error splits into hallucinated content and residual aliasing.*
 
 ## Key Results
 
 | Detector | AUROC | GT-Free | Cost |
 |---|---|---|---|
-| Multi-Mask + IFFT Grad (60/40) | 0.884 ± 0.061 | Yes | 9 forward passes |
-| Multi-Mask + Learned (70/30) | 0.878 ± 0.064 | Yes | 9 forward + CNN |
-| Multi-Mask (8 masks) | 0.875 ± 0.066 | Yes | 8 forward passes |
-| TTA Flip | 0.869 ± 0.061 | Yes | 2 forward passes |
-| Deep Ensemble (3 models) | 0.862 ± 0.075 | Yes | 3 forward passes |
-| IFFT Gradient | 0.826 ± 0.064 | Yes | 1 forward pass |
-| MC Feature Dropout | 0.794 ± 0.084 | Yes | 20 forward passes |
-| Energy OOD | 0.472 ± — | Yes | Failed |
-| sFRC | 0.375 ± — | Yes | Failed |
+| Deep Ensemble (3 models) | 0.859 ± 0.081 | Yes | 3 forward passes |
+| IFFT Gradient | 0.828 ± 0.065 | Yes | Negligible |
+| MM + IFFT Grad (60/40) | 0.804 ± 0.078 | Yes | 9 forward passes |
+| TTA Flip | 0.801 ± 0.085 | Yes | 2 forward passes |
+| Multi-Mask (8 masks) | 0.776 ± 0.082 | Yes | 8 forward passes |
+| MC Dropout (p=0.05) | 0.653 ± 0.117 | Yes | 20 forward passes |
+| Energy OOD | 0.576 ± 0.148 | Yes | Failed |
+| sFRC GT | 0.432 ± 0.076 | No | Failed |
 
 Hallucination ground truth is defined via Bhadra et al.'s null-space decomposition: the component of the reconstruction that has zero support in measured k-space.
 
 ## Findings
 
-U-Net hallucinations constitute ~83% of reconstruction error at 4x acceleration. They concentrate in high frequencies (36x enrichment) and correlate strongly with the sampling PSF (r=0.84), confirming hallucinations are physics-driven, not anatomy-driven. Multi-mask disagreement is the strongest single GT-free detector, while TTA flip achieves comparable performance at 4x lower cost. MC dropout with standard rates (p=0.05) underperforms, and both energy-based OOD and spectral FRC methods fail entirely. Rankings are stable across 4x and 8x acceleration.
+![PSF vs Hallucination](figures/figures_notebook_3/fig_004.png)
+
+*PSF aliasing pattern predicts hallucination location with r = 0.95. Control experiment confirms this is mask-specific (drop to r = 0.66 with different mask).*
+
+U-Net hallucinations constitute ~86% of reconstruction error at 4x acceleration. They concentrate in high frequencies (13.6x enrichment) and correlate strongly with the sampling PSF (r=0.95), confirming hallucinations are physics-driven, not anatomy-driven. Deep ensembles are the strongest single GT-free detector, while TTA flip achieves comparable performance at lower cost. MC dropout with standard rates (p=0.05) underperforms, and both energy-based OOD and spectral FRC methods fail entirely. Rankings are stable across 4x and 8x acceleration.
 
 ## Methods
 
@@ -35,17 +37,21 @@ U-Net hallucinations constitute ~83% of reconstruction error at 4x acceleration.
 
 **Physics-informed detectors** exploit the forward model: multi-mask disagreement probes sensitivity to sampling pattern changes, IFFT gradient measures deviation from the adjoint solution, and data consistency quantifies k-space residuals.
 
-**Uncertainty detectors** use stochastic inference: MC dropout, MC feature dropout (novel workaround for low-dropout architectures), deep ensembles, and TTA horizontal flip.
+**Uncertainty detectors** use stochastic inference: MC dropout, deep ensembles, and TTA horizontal flip.
 
 **Negative results** are documented: energy-based OOD detection (classification transfer fails for pixel-level tasks) and reference-free sFRC (frequency correlation saturates, inverted direction).
 
+![Detector Ranking](figures/figures_notebook_5/fig_001.png)
+
+*Full detector ranking across 19 methods and 6 families.*
+
 ## Dataset
 
-[fastMRI](https://fastmri.med.nyu.edu/) single-coil knee: 973 training volumes, 199 validation volumes (7,135 slices). Center-fraction equidistant masks at 4x and 8x acceleration. Must be downloaded separately after registration.
+[fastMRI](https://fastmri.med.nyu.edu/) single-coil knee: 973 training volumes, 199 validation volumes (7,135 slices). Random Cartesian masks at 4x and 8x acceleration with 8% center fraction. Must be downloaded separately after registration.
 
 ## Installation
 ```bash
-git clone https://github.com/USERNAME/mri-hallucination-physics.git
+git clone https://github.com/GuillaumeEsclozas/mri-hallucination-physics.git
 cd mri-hallucination-physics
 pip install -r requirements.txt
 ```
@@ -62,25 +68,20 @@ Five notebooks reproduce all results end-to-end on Google Colab (A100/L4 GPU):
 | `02_reconstruction_baselines.ipynb` | U-Net training (4x/8x), PSNR/SSIM evaluation |
 | `03_hallucination_characterization.ipynb` | Null-space decomposition, PSF correlation, frequency analysis |
 | `04_physics_informed_detection.ipynb` | 8 physics/learned detectors, patch-level AUROC |
-| `05_uncertainty_benchmark.ipynb` | 22 detectors, 6 families, cross-acceleration, combinations |
-```python
-from src.models.unet import UNet
-from src.physics.decomposition import null_space_decomposition
-from src.detection.physics_detectors import multi_mask_detector
-
-model = UNet(in_ch=1, out_ch=1, channels=(32, 64, 128, 256))
-```
+| `05_uncertainty_benchmark.ipynb` | 19 detectors, 6 families, cross-acceleration, combinations |
 
 ## References
 
-- Bhadra et al. (2021). *On hallucinations in tomographic image reconstruction.* IEEE TCI.
-- Gottschling et al. (2020). *The troublesome kernel: why deep learning for inverse problems is typically unstable.* arXiv.
-- Narnhofer et al. (2024). *A Bayesian approach to quantify uncertainty in MRI reconstruction.* Magnetic Resonance in Medicine.
+- Bhadra et al. (2021). *On hallucinations in tomographic image reconstruction.* IEEE TMI, 40(11).
+- Peck, Bugday & Saeys (2026). *Triggering hallucinations in model-based MRI reconstruction via adversarial perturbations.* arXiv:2602.18536.
+- Theunissen, Mortier, Saeys & Waegeman (2025). *Evaluation of out-of-distribution detection methods.* Briefings in Bioinformatics, 26(3).
+- Gottschling, Antun, Hansen & Adcock (2025). *The troublesome kernel.* SIAM Review, 67:73-104.
+- Kc, Zeng, Soni & Badano (2024). *sFRC for assessing hallucinations in medical image restoration.* FDA/CDRH.
+- Lustig, Donoho & Pauly (2007). *Sparse MRI.* MRM, 58(6).
 - Zbontar et al. (2018). *fastMRI: An open dataset and benchmarks for accelerated MRI.* arXiv.
-- Peck et al. (2024). *Hallucination detection in MRI reconstructions via null-space analysis.* SaeysLab/UGent.
-- Ronneberger et al. (2015). *U-Net: Convolutional Networks for Biomedical Image Segmentation.* MICCAI.
+- Shimron, Tamir, Wang & Lustig (2022). *Implicit data crimes.* PNAS, 119(13).
+- Ronneberger, Fischer & Brox (2015). *U-Net.* MICCAI.
 - Lakshminarayanan et al. (2017). *Simple and scalable predictive uncertainty estimation using deep ensembles.* NeurIPS.
-- Liu et al. (2020). *Energy-based out-of-distribution detection.* NeurIPS.
 
 ## License
 
