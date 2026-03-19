@@ -1,0 +1,24 @@
+{
+  "ranking_32x32": {
+    "learned_risk": 0.891,
+    "mm_learned_50_50": 0.888,
+    "mm_learned_70_30": 0.864,
+    "ifft_gradient": 0.827,
+    "mm_ifft_grad_60_40": 0.822,
+    "multi_mask_8": 0.807,
+    "high_freq_energy": 0.711,
+    "unet_minus_ifft": 0.709,
+    "kspace_consistency": 0.704,
+    "data_consistency": 0.675,
+    "reffree_sfrc": 0.532,
+    "oracle_gt": 1.000
+  },
+  "complementarity": {
+    "PSF-Residual": 0.23,
+    "PSF-DC": 0.28,
+    "PSF-Learned": 0.44,
+    "Residual-DC": 0.18,
+    "Residual-Learned": 0.31,
+    "DC-Learned": 0.32
+  }
+}
