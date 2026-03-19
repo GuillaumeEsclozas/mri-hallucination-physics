@@ -1,0 +1,20 @@
+{
+  "training": {
+    "n_train_volumes": 150,
+    "epochs": 50,
+    "best_epoch": 47,
+    "best_val_loss": 0.0393
+  },
+  "4x": {
+    "ifft_psnr": "23.3 +/- 3.1",
+    "ifft_ssim": "0.569 +/- 0.090",
+    "unet_psnr": "26.2 +/- 2.4",
+    "unet_ssim": "0.599 +/- 0.118"
+  },
+  "8x": {
+    "ifft_psnr": "22.3 +/- 3.2",
+    "ifft_ssim": "0.482 +/- 0.110",
+    "unet_psnr": "24.4 +/- 2.6",
+    "unet_ssim": "0.515 +/- 0.125"
+  }
+}
