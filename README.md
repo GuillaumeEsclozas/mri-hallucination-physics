@@ -1,6 +1,6 @@
 # Physics-Informed Hallucination Detection in Accelerated MRI
 
-Detecting and localizing hallucinated content in deep learning-based MRI reconstruction without ground truth access. Benchmarks 22 detectors across 6 families (physics-informed, uncertainty, learned, OOD, spectral, hybrid) on the [fastMRI](https://fastmri.med.nyu.edu/) single-coil knee dataset.
+Benchmark of 22 hallucination detectors (6 families) for accelerated MRI reconstruction, evaluated on fastMRI single-coil knee data. The core idea: use null-space decomposition as ground truth to score detectors that don't need ground truth at inference.
 
 > **Best GT-free detector: Deep Ensemble at 0.859 patch-level AUROC**, with IFFT Gradient (0.828) as the best zero-cost alternative.
 
@@ -35,11 +35,9 @@ U-Net hallucinations constitute ~86% of reconstruction error at 4x acceleration.
 
 **Null-space decomposition** (Bhadra et al., 2021) separates reconstruction error into data-consistent and hallucinated components. The hallucination map serves as ground truth for all detector evaluations.
 
-**Physics-informed detectors** exploit the forward model: multi-mask disagreement probes sensitivity to sampling pattern changes, IFFT gradient measures deviation from the adjoint solution, and data consistency quantifies k-space residuals.
+**Physics-informed detectors** exploit the forward model: multi-mask disagreement probes sensitivity to sampling pattern changes, IFFT gradient measures deviation from the adjoint solution, and data consistency quantifies k-space residuals. **Uncertainty detectors** use stochastic inference: MC dropout, deep ensembles, and TTA horizontal flip.
 
-**Uncertainty detectors** use stochastic inference: MC dropout, deep ensembles, and TTA horizontal flip.
-
-**Negative results** are documented: energy-based OOD detection (classification transfer fails for pixel-level tasks) and reference-free sFRC (frequency correlation saturates, inverted direction).
+Energy-based OOD detection and reference-free sFRC both failed (see table above). Energy scores don't transfer from classification to pixel-level tasks, and sFRC frequency correlation saturates with inverted direction.
 
 ![Detector Ranking](figures/figures_notebook_5/fig_001.png)
 
@@ -64,11 +62,11 @@ Five notebooks reproduce all results end-to-end on Google Colab (A100/L4 GPU):
 
 | Notebook | Content |
 |---|---|
-| `01_data_exploration.ipynb` | Pipeline verification, adjoint consistency, null-space validation |
-| `02_reconstruction_baselines.ipynb` | U-Net training (4x/8x), PSNR/SSIM evaluation |
-| `03_hallucination_characterization.ipynb` | Null-space decomposition, PSF correlation, frequency analysis |
-| `04_physics_informed_detection.ipynb` | 8 physics/learned detectors, patch-level AUROC |
-| `05_uncertainty_benchmark.ipynb` | 19 detectors, 6 families, cross-acceleration, combinations |
+| `01_data_exploration.ipynb` | Sanity checks: adjoint consistency, null-space validation |
+| `02_reconstruction_baselines.ipynb` | U-Net training at 4x/8x, PSNR/SSIM |
+| `03_hallucination_characterization.ipynb` | Null-space decomposition, PSF correlation, freq analysis |
+| `04_physics_informed_detection.ipynb` | First 8 detectors, patch-level AUROC |
+| `05_uncertainty_benchmark.ipynb` | All 19 detectors, cross-acceleration, detector combinations |
 
 ## References
 
