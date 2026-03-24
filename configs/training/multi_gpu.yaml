@@ -1,0 +1,8 @@
+epochs: 50
+batch_size: 8
+lr: 1.0e-3
+num_workers: 4
+checkpoint_every: 5
+skip_nan_batches: false
+max_grad_norm: 1.0
+warmup_epochs: 5

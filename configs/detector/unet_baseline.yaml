@@ -1,0 +1,4 @@
+name: unet_baseline
+requires_training: true
+channels: [32, 64, 128, 256]
+dropout_p: 0.05

@@ -1,0 +1,5 @@
+name: mc_dropout
+requires_training: false
+mc_samples: 20
+channels: [32, 64, 128, 256]
+dropout_p: 0.05

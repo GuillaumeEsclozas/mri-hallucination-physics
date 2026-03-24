@@ -1,0 +1,15 @@
+defaults:
+  - data: fastmri_knee
+  - training: single_gpu
+  - detector: unet_baseline
+  - _self_
+
+checkpoint_dir: ./checkpoints
+resume_from: null
+seed: 42
+deterministic: false
+synthetic: false
+do_profile: false
+profile_dir: ./profile_traces
+use_wandb: false
+wandb_project: mri-hallucination-physics

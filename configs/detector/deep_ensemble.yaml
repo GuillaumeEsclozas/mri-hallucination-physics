@@ -1,0 +1,6 @@
+name: deep_ensemble
+requires_training: true
+ensemble_size: 3
+seeds: [100, 200, 300]
+channels: [32, 64, 128, 256]
+dropout_p: 0.05

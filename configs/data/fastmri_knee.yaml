@@ -1,0 +1,7 @@
+data_dir: /content/data/singlecoil_train
+val_dir: /content/data/singlecoil_val
+acceleration: 4
+center_fraction: 0.08
+mask_type: random
+max_train_volumes: null
+max_val_volumes: null
