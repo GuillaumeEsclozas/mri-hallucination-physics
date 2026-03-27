@@ -1,0 +1,15 @@
+.git
+.github
+__pycache__
+*.pyc
+*.pyo
+*.h5
+data/
+checkpoints/
+profile_traces/
+results/
+wandb/
+.ipynb_checkpoints/
+*.ipynb
+*.sif
+logs/
