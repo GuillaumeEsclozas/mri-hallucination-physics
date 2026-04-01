@@ -106,6 +106,33 @@ Container setup: Dockerfile from NGC PyTorch 24.01 base image, Apptainer build s
 
 Other tooling: `scripts/prepare_data.py` validates the fastMRI directory layout, `scripts/aggregate_results.py` collects best checkpoints into a summary table, `scaling_benchmark.py` runs the throughput measurements.
 
+<details>
+<summary><b>What didn't work (and what I learned)</b></summary>
+
+### Detection methods that failed
+
+**Energy-based OOD detection** (0.576 AUROC). Energy scores were designed for classification logits, not pixel-level regression. The score distribution for hallucinated vs clean patches overlaps almost entirely. Doesn't transfer to reconstruction tasks.
+
+**Spectral FRC** (0.432 AUROC, worse than random). The frequency ring correlation between reconstruction and ground truth saturates at high frequencies and the correlation direction inverts. Reference-free sFRC inherits this problem. We spent a full notebook iteration trying different ring widths and normalization schemes before concluding the metric is fundamentally unsuited for hallucination detection at these acceleration factors.
+
+**MC Dropout at p=0.05** (0.653 AUROC). The default dropout rate is too low to produce meaningful variance across forward passes. Higher rates (p=0.2+) would help but degrade reconstruction quality during training. Deep ensembles achieve the same goal (epistemic uncertainty) without this tradeoff.
+
+### DDP and infrastructure issues
+
+**NaN skip deadlocks DDP.** Our first training loop used `continue` to skip batches with NaN loss. Under DDP this hangs forever because the skipping rank never calls `backward()`, and the other ranks block on gradient allreduce. Fix: always call backward, let GradScaler handle inf gradients, zero out NaN contributions from the loss accumulator after the fact.
+
+**Google Drive FUSE dies under HDF5 random access.** Every training run that read directly from Drive eventually hit `OSError: Transport endpoint is not connected`. The FUSE mount can't handle the random read pattern of HDF5 datasets. Fix: always copy data to local SSD before training. This cost us several failed runs before we learned to never trust Drive for HDF5.
+
+**mp.spawn + NCCL on cloud pods.** On RunPod with PCIe-connected A40 GPUs (SYS interconnect), `mp.spawn` based benchmarking produced 0.57x "scaling" on 2 GPUs and hung on 4. The combination of slow inter-NUMA PCIe and mp.spawn's process management made DDP unusable. Switching to `torchrun` and NVLink-connected H100 SXM resolved both problems. Lesson: interconnect topology matters more than raw GPU power for DDP.
+
+**Port conflicts in spawned processes.** Early versions called `find_free_port()` inside each child process spawned by `mp.spawn`. Each child found a different port, so they never connected. The port must be determined once in the parent and passed to all children.
+
+**Stale module cache in Colab.** After `%%writefile` rewrites a `.py` file, Python still imports the cached old version. Every rewrite needs `importlib.reload()`. We hit this at least three times before making it a habit.
+
+**Warmup LR direction confusion.** With `warmup_epochs=1`, the warmup completes by the end of epoch 1 (LR reaches peak). Epoch 2 starts cosine decay, so LR drops. Our first test asserted LR should increase from epoch 1 to epoch 2, which was backwards. Small thing, but representative of the kind of off-by-one reasoning that DDP scheduling requires.
+
+</details>
+
 ## References
 
 - Bhadra et al. (2021). *On hallucinations in tomographic image reconstruction.* IEEE TMI, 40(11).
