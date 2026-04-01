@@ -68,6 +68,44 @@ Five notebooks reproduce all results end-to-end on Google Colab (A100/L4 GPU):
 | `04_physics_informed_detection.ipynb` | First 8 detectors, patch-level AUROC |
 | `05_uncertainty_benchmark.ipynb` | All 19 detectors, cross-acceleration, detector combinations |
 
+## Distributed Training
+
+Training infrastructure for single GPU (Colab) and multi GPU clusters via PyTorch DDP. Configs use Hydra so switching between setups is one argument change.
+```bash
+# single gpu, synthetic data for testing
+python train_ddp.py synthetic=true training.epochs=50
+
+# multi gpu via torchrun
+torchrun --standalone --nproc_per_node=4 train_ddp.py training=multi_gpu
+
+# deep ensemble (loops over seeds automatically)
+python train_ddp.py detector=deep_ensemble
+```
+
+The training loop handles mixed precision with GradScaler, gradient clipping (configurable via `training.max_grad_norm`), and a linear warmup into cosine annealing schedule. NaN batches don't deadlock DDP because backward is always called regardless of loss value, and GradScaler skips the optimizer step when it detects inf gradients.
+
+Extended training (200 epochs, 150 volumes, 4x acceleration) reached val L1 = 0.0378, down from the 50 epoch baseline at 0.0433. Most of the gain comes from warmup and gradient clipping rather than just training longer (at epoch 50 the new pipeline is already at 0.0404).
+
+### Scaling results
+
+Measured on 4x H100 SXM (NVLink), weak scaling with batch_size=8 per GPU:
+
+| GPUs | Throughput (samples/sec) | Speedup | Efficiency |
+|------|--------------------------|---------|------------|
+| 1    | 360.8                    | 1.00x   | 100%       |
+| 2    | 407.7                    | 1.13x   | 56.5%      |
+| 4    | 736.2                    | 2.04x   | 51.0%      |
+
+The model is small (7.7M params, 320x320 images) so gradient allreduce dominates over compute. This is expected for communication bound workloads. Larger architectures like VarNet or unrolled networks would show better scaling.
+
+### HPC infrastructure
+
+SLURM job scripts are in `slurm/` (single node and array sweep for detector benchmarks). They target generic SLURM clusters. UGent HPC uses a PBS/Torque frontend over SLURM, see comments in the sbatch files for adaptation notes.
+
+Container setup: Dockerfile from NGC PyTorch 24.01 base image, Apptainer build script for UGent clusters (images must live on `$VSC_SCRATCH`). See `docker/`.
+
+Other tooling: `scripts/prepare_data.py` validates the fastMRI directory layout, `scripts/aggregate_results.py` collects best checkpoints into a summary table, `scaling_benchmark.py` runs the throughput measurements.
+
 ## References
 
 - Bhadra et al. (2021). *On hallucinations in tomographic image reconstruction.* IEEE TMI, 40(11).
