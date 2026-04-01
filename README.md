@@ -111,25 +111,21 @@ Other tooling: `scripts/prepare_data.py` validates the fastMRI directory layout,
 
 ### Detection methods that failed
 
-**Energy-based OOD detection** (0.576 AUROC). Energy scores were designed for classification logits, not pixel-level regression. The score distribution for hallucinated vs clean patches overlaps almost entirely. Doesn't transfer to reconstruction tasks.
+**Energy-based OOD detection** (0.576 AUROC). Energy scores were designed for classification logits, not pixel-level regression. The score distribution for hallucinated vs clean patches overlaps almost entirely.
 
-**Spectral FRC** (0.432 AUROC, worse than random). The frequency ring correlation between reconstruction and ground truth saturates at high frequencies and the correlation direction inverts. Reference-free sFRC inherits this problem. We spent a full notebook iteration trying different ring widths and normalization schemes before concluding the metric is fundamentally unsuited for hallucination detection at these acceleration factors.
+**Spectral FRC** (0.432 AUROC, worse than random). We spent a full notebook iteration trying different ring widths and normalization schemes before concluding sFRC is fundamentally unsuited for hallucination detection at these acceleration factors. The frequency ring correlation saturates at high frequencies and the correlation direction inverts.
 
-**MC Dropout at p=0.05** (0.653 AUROC). The default dropout rate is too low to produce meaningful variance across forward passes. Higher rates (p=0.2+) would help but degrade reconstruction quality during training. Deep ensembles achieve the same goal (epistemic uncertainty) without this tradeoff.
+**MC Dropout at p=0.05** (0.653 AUROC). Dropout rate is too low for meaningful variance. Higher rates degrade reconstruction quality during training, so deep ensembles are strictly better for epistemic uncertainty.
 
-### DDP and infrastructure issues
+### DDP and infrastructure
 
-**NaN skip deadlocks DDP.** Our first training loop used `continue` to skip batches with NaN loss. Under DDP this hangs forever because the skipping rank never calls `backward()`, and the other ranks block on gradient allreduce. Fix: always call backward, let GradScaler handle inf gradients, zero out NaN contributions from the loss accumulator after the fact.
+NaN skip deadlocks DDP. Our first training loop used `continue` to skip NaN batches before `backward()`. Under DDP this hangs forever because the skipping rank never enters allreduce. Always call backward, let GradScaler handle inf gradients.
 
-**Google Drive FUSE dies under HDF5 random access.** Every training run that read directly from Drive eventually hit `OSError: Transport endpoint is not connected`. The FUSE mount can't handle the random read pattern of HDF5 datasets. Fix: always copy data to local SSD before training. This cost us several failed runs before we learned to never trust Drive for HDF5.
+Google Drive FUSE dies under HDF5 random access. Every run that read directly from Drive eventually hit `Transport endpoint is not connected`. Copy to local SSD before training. We lost several runs before learning this.
 
-**mp.spawn + NCCL on cloud pods.** On RunPod with PCIe-connected A40 GPUs (SYS interconnect), `mp.spawn` based benchmarking produced 0.57x "scaling" on 2 GPUs and hung on 4. The combination of slow inter-NUMA PCIe and mp.spawn's process management made DDP unusable. Switching to `torchrun` and NVLink-connected H100 SXM resolved both problems. Lesson: interconnect topology matters more than raw GPU power for DDP.
+mp.spawn + NCCL on cloud pods was a disaster. On RunPod with PCIe A40s, we got 0.57x "scaling" on 2 GPUs and hangs on 4. Switching to torchrun + NVLink H100s fixed everything. Interconnect topology matters more than raw GPU power.
 
-**Port conflicts in spawned processes.** Early versions called `find_free_port()` inside each child process spawned by `mp.spawn`. Each child found a different port, so they never connected. The port must be determined once in the parent and passed to all children.
-
-**Stale module cache in Colab.** After `%%writefile` rewrites a `.py` file, Python still imports the cached old version. Every rewrite needs `importlib.reload()`. We hit this at least three times before making it a habit.
-
-**Warmup LR direction confusion.** With `warmup_epochs=1`, the warmup completes by the end of epoch 1 (LR reaches peak). Epoch 2 starts cosine decay, so LR drops. Our first test asserted LR should increase from epoch 1 to epoch 2, which was backwards. Small thing, but representative of the kind of off-by-one reasoning that DDP scheduling requires.
+Smaller things: port must be found in the parent process (not per child), `%%writefile` needs `importlib.reload()` every time, and SequentialLR warmup completes *at* the milestone epoch (not after), so LR drops on the next one.
 
 </details>
 
