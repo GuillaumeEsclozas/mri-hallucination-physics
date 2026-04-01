@@ -1,0 +1,4 @@
+num_gpus,throughput_samples_sec,speedup,efficiency
+1,360.8,1.000,1.0000
+2,407.7,1.130,0.5650
+4,736.2,2.040,0.5100
